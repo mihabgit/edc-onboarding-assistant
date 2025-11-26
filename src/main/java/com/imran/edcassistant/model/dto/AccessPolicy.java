@@ -1,4 +1,4 @@
-package com.imran.edcassistant.model;
+package com.imran.edcassistant.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -14,4 +14,5 @@ public class AccessPolicy {
 
     @NotBlank
     private String usagePurpose;
+
 }

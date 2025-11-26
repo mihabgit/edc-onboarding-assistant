@@ -1,12 +1,16 @@
 package com.imran.edcassistant.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.imran.edcassistant.model.AssetCreateRequestDto;
-
-import java.util.Map;
+import com.imran.edcassistant.model.dto.AssetDetails;
+import com.imran.edcassistant.model.dto.AssetListResponse;
+import com.imran.edcassistant.model.dto.AssetRequestDto;
+import com.imran.edcassistant.model.dto.AssetResponseDto;
 
 public interface AssetService {
 
-    Map<String, Object> createAsset(AssetCreateRequestDto requestDto) throws JsonProcessingException;
+    AssetResponseDto createAsset(AssetRequestDto requestDto);
+
+    AssetListResponse getAllAssets();
+
+    AssetDetails getAssetById(String assetId);
 
 }

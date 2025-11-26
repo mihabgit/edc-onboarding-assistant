@@ -1,25 +1,24 @@
-package com.imran.edcassistant.model;
+package com.imran.edcassistant.model.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-public class AssetCreateRequestDto {
+public class AssetRequestDto {
 
-    @NotBlank
+    @NotBlank(message = "Asset name is required!")
     private String name;
 
-    @NotBlank
     private String description;
 
-    @NotBlank
+    @NotBlank(message = "Content type is required!")
     private String contentType;
 
-    @NotNull
+    @NotNull(message = "Data address is required!")
     private DataAddress dataAddress;
 
-    @NotNull
+    @NotNull(message = "Access policy is required!")
     private AccessPolicy accessPolicy;
 
 }
