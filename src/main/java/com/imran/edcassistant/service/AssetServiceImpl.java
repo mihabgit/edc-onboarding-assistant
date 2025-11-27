@@ -1,28 +1,32 @@
 package com.imran.edcassistant.service;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.imran.edcassistant.model.dto.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.imran.edcassistant.client.EdcClient;
-import com.imran.edcassistant.model.edc.EdcAsset;
-import com.imran.edcassistant.model.edc.EdcDataAddress;
-import com.imran.edcassistant.model.edc.EdcPolicyDefinition;
-import lombok.RequiredArgsConstructor;
+import com.imran.edcassistant.model.dto.AssetListResponse;
+import com.imran.edcassistant.model.dto.AssetRequestDto;
+import com.imran.edcassistant.model.dto.AssetResponseDto;
+import com.imran.edcassistant.model.edc.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
 public class AssetServiceImpl implements AssetService {
 
-    private final EdcClient  edcClient;
+    private final EdcClient edcClient;
     private final PolicyService policyService;
     private final String catalogUrl;
 
-    public AssetServiceImpl(EdcClient edcClient, PolicyService policyService,@Value("${app.catalog.url:http://localhost:8090/api/catalog}") String catalogUrl) {
+    public AssetServiceImpl(EdcClient edcClient, PolicyService policyService,
+                            @Value("${app.catalog.url:http://localhost:8090/api/catalog}") String catalogUrl) {
         this.edcClient = edcClient;
         this.policyService = policyService;
         this.catalogUrl = catalogUrl;
@@ -38,11 +42,11 @@ public class AssetServiceImpl implements AssetService {
 
         try {
             EdcPolicyDefinition policyDefinition = policyService.createEdcPolicy(policyId, requestDto.getAccessPolicy());
-            EdcPolicyDefinition policy = edcClient.createPolicy(policyDefinition);
+            PolicyResponse policy = edcClient.createPolicy(policyDefinition);
             log.info("Created policy: {}", policy);
 
-            EdcAsset edcAsset = buildEdcAsset(assetId, requestDto, policyId);
-            EdcAsset asset = edcClient.createAsset(edcAsset);
+            String edcAsset = buildEdcAsset(assetId, requestDto);
+            String asset = edcClient.createAsset(edcAsset);
             log.info("Created asset: {}", asset);
 
             AssetResponseDto responseDto = new AssetResponseDto();
@@ -55,31 +59,33 @@ public class AssetServiceImpl implements AssetService {
 
         } catch (Exception e) {
             log.error("Error creating asset: {}", requestDto, e);
-            throw new  RuntimeException("Asset creation failed", e);
+            throw new RuntimeException("Asset creation failed", e);
         }
 
     }
 
-    private EdcAsset buildEdcAsset(String assetId, AssetRequestDto requestDto, String policyId) {
+    private String buildEdcAsset(String assetId, AssetRequestDto requestDto) throws JsonProcessingException {
         EdcAsset edcAsset = new EdcAsset();
         edcAsset.setId(assetId);
+        edcAsset.setType("Asset");
 
         Map<String, Object> properties = new HashMap<>();
         properties.put("name", requestDto.getName());
-        properties.put("contenttype", requestDto.getContentType());
-        properties.put("description", requestDto.getDescription());
-        properties.put("policyId", policyId);
         edcAsset.setProperties(properties);
 
-        EdcDataAddress dataAddress = new EdcDataAddress();
+        EdcDataAddressRequest dataAddress = new EdcDataAddressRequest();
+        dataAddress.setTypeAnnotation("DataAddress");
         dataAddress.setType("HttpData");
         dataAddress.setBaseUrl(requestDto.getDataAddress().getBaseUrl());
-        dataAddress.setMethod("GET");
-        dataAddress.setProxyBody(true);
-        dataAddress.setProxyMethod(true);
-        edcAsset.setEdcDataAddress(dataAddress);
+        edcAsset.setDataAddress(dataAddress);
 
-        return edcAsset;
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(edcAsset);
+        log.info("build asset: {}", json);
+
+        return json;
 
     }
 
@@ -87,61 +93,29 @@ public class AssetServiceImpl implements AssetService {
         log.info("Fetching all assets...");
 
         try {
-            List<EdcAsset> edcAssets = edcClient.getAllAssets();
-            List<AssetDetails>  assetDetails = new ArrayList<>();
-            for (EdcAsset edcAsset : edcAssets) {
-                AssetDetails  assetDetail = convertToAssetDetails(edcAsset);
-                assetDetails.add(assetDetail);
-            }
+            List<EdcAssetResponse> edcAssets = edcClient.getAllAssets();
 
             AssetListResponse assetListResponse = new AssetListResponse();
-            assetListResponse.setAssets(assetDetails);
+            assetListResponse.setAssets(edcAssets);
             assetListResponse.setTotal(edcAssets.size());
             return assetListResponse;
 
-        }  catch (Exception e) {
+        } catch (Exception e) {
             log.error("Error fetching all assets", e);
-            throw new  RuntimeException("Error fetching all assets", e);
+            throw new RuntimeException("Error fetching all assets", e);
         }
 
     }
 
-    public AssetDetails getAssetById(String assetId) {
+    public EdcAssetResponse getAssetById(String assetId) {
         log.info("Fetching asset by id: {}", assetId);
 
         try {
-            EdcAsset edcAsset = edcClient.getAssetByAssetId(assetId);
-            return convertToAssetDetails(edcAsset);
+            return edcClient.getAssetByAssetId(assetId);
         } catch (Exception e) {
             log.error("Error fetching asset by id: {}", assetId, e);
-            throw new  RuntimeException("Error fetching asset by id: " + assetId, e);
+            throw new RuntimeException("Error fetching asset by id: " + assetId, e);
         }
-    }
-
-    private AssetDetails convertToAssetDetails(EdcAsset asset) {
-
-        if (asset == null) {
-            return null;
-        }
-
-        Map<String, Object> properties = asset.getProperties();
-        if (properties == null) {
-            return null;
-        }
-
-        AssetDetails assetDetails = new AssetDetails();
-        assetDetails.setAssetId(asset.getId());
-        assetDetails.setName(asset.getProperties().get("name").toString());
-        assetDetails.setDescription(asset.getProperties().get("description").toString());
-        assetDetails.setContentType(asset.getProperties().get("contenttype").toString());
-
-        AssetPolicy assetPolicy = new AssetPolicy();
-        assetPolicy.setType("restricted");
-        assetPolicy.setAllowedCompanies(List.of("BPNL000000000001"));
-        assetDetails.setPolicy(assetPolicy);
-        assetDetails.setCreatedAt(LocalDateTime.now());
-
-        return assetDetails;
     }
 
 }

@@ -6,7 +6,7 @@ import lombok.Data;
 import java.util.Map;
 
 @Data
-public class EdcAsset {
+public class EdcAssetResponse {
 
     @JsonProperty("@id")
     private String id;
@@ -14,10 +14,12 @@ public class EdcAsset {
     @JsonProperty("@type")
     private String type;
 
-    @JsonProperty("https://w3id.org/edc/v0.0.1/ns/properties")
     private Map<String, Object> properties;
 
-    @JsonProperty("https://w3id.org/edc/v0.0.1/ns/dataAddress")
-    private EdcDataAddressRequest dataAddress;
+    @JsonProperty("dataAddress")
+    private EdcDataAddressResponse dataAddress;
+
+    @JsonProperty("@context")
+    private Map<String, Object> context;
 
 }

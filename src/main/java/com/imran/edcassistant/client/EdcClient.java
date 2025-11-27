@@ -1,9 +1,7 @@
 package com.imran.edcassistant.client;
 
 import com.imran.edcassistant.exception.EdcApiException;
-import com.imran.edcassistant.model.edc.EdcAsset;
-import com.imran.edcassistant.model.edc.EdcAssetQuery;
-import com.imran.edcassistant.model.edc.EdcPolicyDefinition;
+import com.imran.edcassistant.model.edc.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -11,9 +9,9 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -22,12 +20,12 @@ public class EdcClient {
     private final RestTemplate restTemplate;
     private final String edcApiUrl;
 
-    public EdcClient(RestTemplate restTemplate, @Value("${edc.management.api.url:http://localhost:8181}") String edcApiUrl) {
+    public EdcClient(RestTemplate restTemplate, @Value("${edc.management.api.url:http://localhost:19193}") String edcApiUrl) {
         this.restTemplate = restTemplate;
         this.edcApiUrl = edcApiUrl;
     }
 
-    public EdcAsset createAsset(EdcAsset edcAsset) {
+    public String createAsset(String edcAsset) {
         log.info("Creating asset in EDC:{}", edcAsset);
 
         String url = this.edcApiUrl + "/management/v3/assets";
@@ -35,26 +33,26 @@ public class EdcClient {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<EdcAsset> request = new HttpEntity<>(edcAsset, headers);
+            HttpEntity<String> request = new HttpEntity<>(edcAsset, headers);
 
-            ResponseEntity<EdcAsset> response = restTemplate.exchange(url, HttpMethod.POST, request, EdcAsset.class);
+            ResponseEntity<Object> response = restTemplate.exchange(url, HttpMethod.POST, request, Object.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                EdcAsset asset = response.getBody();
-                log.info("Successfully created asset in EDC:{}", asset.getId());
+                String asset = response.getBody().toString();
+                log.info("Successfully created asset in EDC:{}", asset);
                 return asset;
             } else {
-                throw new EdcApiException("Failed to create asset in EDC "+response.getStatusCode());
+                throw new EdcApiException("Failed to create asset in EDC " + response.getStatusCode());
             }
 
         } catch (Exception e) {
             log.error("Error creating asset in EDC:{}", edcAsset, e);
-            throw new EdcApiException("Error creating asset in EDC: "+e.getMessage());
+            throw new EdcApiException("Error creating asset in EDC: " + e.getMessage());
         }
 
     }
 
-    public EdcPolicyDefinition createPolicy(EdcPolicyDefinition edcPolicyDefinition) {
+    public PolicyResponse createPolicy(EdcPolicyDefinition edcPolicyDefinition) {
         log.info("Creating policy in EDC:{}", edcPolicyDefinition);
 
         String url = this.edcApiUrl + "/management/v3/policydefinitions";
@@ -64,14 +62,14 @@ public class EdcClient {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<EdcPolicyDefinition> request = new HttpEntity<>(edcPolicyDefinition, headers);
 
-            ResponseEntity<EdcPolicyDefinition> response = restTemplate.exchange(url, HttpMethod.POST, request, EdcPolicyDefinition.class);
+            ResponseEntity<PolicyResponse> response = restTemplate.exchange(url, HttpMethod.POST, request, PolicyResponse.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                EdcPolicyDefinition policy = response.getBody();
-                log.info("Successfully created policy in EDC:{}", policy.getId());
-                return policy;
+                PolicyResponse policyResponse = response.getBody();
+                log.info("Successfully created policy in EDC:{}", policyResponse);
+                return policyResponse;
             } else {
-                throw new EdcApiException("Failed to create policy in EDC: "+response.getStatusCode());
+                throw new EdcApiException("Failed to create policy in EDC: " + response.getStatusCode());
             }
 
         } catch (Exception e) {
@@ -81,41 +79,46 @@ public class EdcClient {
 
     }
 
-    public List<EdcAsset> getAllAssets() {
+    public List<EdcAssetResponse> getAllAssets() {
         log.info("Getting all assets in EDC");
 
         String url = this.edcApiUrl + "/management/v3/assets/request";
-        EdcAssetQuery query = new EdcAssetQuery();
+
+        AssetQuerySpec req = new AssetQuerySpec();
+        req.setType("QuerySpec");
+        req.setLimit(50);
+        req.setOffset(0);
+        req.setContext(Map.of("@vocab", "https://w3id.org/edc/v0.0.1/ns/"));
 
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<EdcAssetQuery> request = new HttpEntity<>(query, headers);
+            HttpEntity<AssetQuerySpec> request = new HttpEntity<>(req, headers);
 
-            ResponseEntity<List<EdcAsset>> response = restTemplate.exchange(
+            ResponseEntity<List<EdcAssetResponse>> response = restTemplate.exchange(
                     url, HttpMethod.POST, request, new ParameterizedTypeReference<>() {
                     });
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                List<EdcAsset> assets = response.getBody();
+                List<EdcAssetResponse> assets = response.getBody();
                 log.info("Successfully getting all assets in EDC");
                 return assets;
-            }  else {
+            } else {
                 log.error("Failed to get all assets in EDC");
                 return Collections.emptyList();
             }
 
         } catch (Exception e) {
             log.error("Error getting all assets in EDC: {}", e.getMessage(), e);
-            throw new EdcApiException("Error getting all assets from EDC: " +e.getMessage());
+            throw new EdcApiException("Error getting all assets from EDC: " + e.getMessage());
         }
 
     }
 
-    public EdcAsset getAssetByAssetId(String assetId) {
+    public EdcAssetResponse getAssetByAssetId(String assetId) {
         log.info("Getting asset by ID in EDC:{}", assetId);
 
-        List<EdcAsset> assets = getAllAssets();
+        List<EdcAssetResponse> assets = getAllAssets();
 
         return assets.stream()
                 .filter(asset -> assetId.equals(asset.getId()))
@@ -133,10 +136,39 @@ public class EdcClient {
         }
     }
 
-    public List<EdcPolicyDefinition> getAllPolicies() {
+    public List<PolicyResponse> getAllPolicies() {
         log.info("Getting all policies in EDC");
 
-        return new ArrayList<>();
+        String url = this.edcApiUrl + "/management/v3/policydefinitions/request";
+
+        PolicyQuerySpec querySpec = new PolicyQuerySpec();
+        querySpec.setType("QuerySpec");
+        querySpec.setLimit(50);
+        querySpec.setOffset(0);
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<PolicyQuerySpec> request = new HttpEntity<>(querySpec, headers);
+
+            ResponseEntity<List<PolicyResponse>> response = restTemplate.exchange(
+                    url, HttpMethod.POST, request, new ParameterizedTypeReference<>() {
+                    });
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                List<PolicyResponse> policies = response.getBody();
+                log.info("Successfully getting all policies in EDC");
+                return policies;
+            } else {
+                log.error("Failed to get all policies in EDC");
+                return Collections.emptyList();
+            }
+
+        } catch (Exception e) {
+            log.error("Error getting all policies in EDC: {}", e.getMessage(), e);
+            throw new EdcApiException("Error getting all policies from EDC: " + e.getMessage());
+        }
+
     }
 
 }

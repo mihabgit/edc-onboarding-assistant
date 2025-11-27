@@ -14,55 +14,63 @@ import java.util.List;
 public class PolicyService {
 
     public EdcPolicyDefinition createEdcPolicy(String policyId, AccessPolicy accessPolicy) {
-        EdcPolicyDefinition policyDefinition = new EdcPolicyDefinition();
-        policyDefinition.setId(policyId);
+
+        EdcPolicyDefinition definition = new EdcPolicyDefinition();
+        definition.setId(policyId);
 
         EdcPolicy policy = new EdcPolicy();
-        policy.setPermission(createPermission(accessPolicy));
-        policyDefinition.setPolicy(policy);
-        return policyDefinition;
+        policy.setPermissions(createPermissions(accessPolicy));
 
+        definition.setPolicy(policy);
+        return definition;
     }
 
-    private List<EdcPermission> createPermission(AccessPolicy accessPolicy) {
-        List<EdcPermission> permissions = new ArrayList<>();
 
+    private List<EdcPermission> createPermissions(AccessPolicy accessPolicy) {
+
+        List<EdcPermission> list = new ArrayList<>();
+
+        // Allowed companies
         if (accessPolicy.getAllowedCompanies() != null && !accessPolicy.getAllowedCompanies().isEmpty()) {
             for (String company : accessPolicy.getAllowedCompanies()) {
-                EdcPermission permission = new EdcPermission();
-                permission.setAction("USE");
-                permission.setConstraint(createCompanyConstraint(company));
-                permissions.add(permission);
+                list.add(buildPermission(createCompanyConstraint(company)));
             }
         } else {
-            EdcPermission permission = new EdcPermission();
-            permission.setAction("USE");
-            permissions.add(permission);
+            list.add(buildPermission(null));
         }
 
+        // Usage purpose
         if (accessPolicy.getUsagePurpose() != null && !accessPolicy.getUsagePurpose().isEmpty()) {
-            EdcPermission purpose = new EdcPermission();
-            purpose.setAction("USE");
-            purpose.setConstraint(createPurposeConstraint(accessPolicy.getUsagePurpose()));
-            permissions.add(purpose);
+            list.add(buildPermission(createPurposeConstraint(accessPolicy.getUsagePurpose())));
         }
-        return permissions;
+
+        return list;
     }
 
+
+    private EdcPermission buildPermission(EdcConstraint constraint) {
+
+        EdcPermission permission = new EdcPermission();
+        permission.setAction("use");
+        permission.setConstraint(constraint);
+        return permission;
+    }
+
+
     private EdcConstraint createCompanyConstraint(String company) {
-        EdcConstraint constraint = new EdcConstraint();
-        constraint.setLeftOperand("BusinessPartnerNumber");
-        constraint.setOperator("eq");
-        constraint.setRightOperand(company);
-        return constraint;
+        EdcConstraint c = new EdcConstraint();
+        c.setLeftOperand("BusinessPartnerNumber");
+        c.setOperator("eq");
+        c.setRightOperand(company);
+        return c;
     }
 
     private EdcConstraint createPurposeConstraint(String purpose) {
-        EdcConstraint constraint = new EdcConstraint();
-        constraint.setLeftOperand("Purpose");
-        constraint.setOperator("eq");
-        constraint.setRightOperand(purpose);
-        return constraint;
+        EdcConstraint c = new EdcConstraint();
+        c.setLeftOperand("Purpose");
+        c.setOperator("eq");
+        c.setRightOperand(purpose);
+        return c;
     }
 
 }

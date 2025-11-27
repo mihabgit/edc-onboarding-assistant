@@ -1,5 +1,6 @@
 package com.imran.edcassistant.model.edc;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
@@ -7,7 +8,10 @@ import java.util.List;
 @Data
 public class EdcPolicy {
 
-    private String type = "Set";
-    private List<EdcPermission> permission;
+    @JsonProperty("@type")
+    private final String type = "odrl:Set";
+
+    @JsonProperty("permission")
+    private List<EdcPermission> permissions;
 
 }
