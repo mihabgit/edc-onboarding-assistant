@@ -89,15 +89,25 @@ public class AssetServiceImpl implements AssetService {
 
     }
 
-    public AssetListResponse getAllAssets() {
+    public AssetListResponse getAllAssets(Integer page, Integer limit, String assetId) {
         log.info("Fetching all assets...");
 
         try {
-            List<EdcAssetResponse> edcAssets = edcClient.getAllAssets();
+            List<EdcAssetResponse> allAssets = edcClient.getAllAssets();
+
+            // Apply search filter in memory
+            List<EdcAssetResponse> filtered = allAssets.stream()
+                    .filter(asset -> assetId == null || asset.getId().contains(assetId))
+                    .toList();
+
+            // Apply pagination in memory
+            int start = Math.min(page, filtered.size());
+            int end = Math.min(start + limit, filtered.size());
+            List<EdcAssetResponse> paginated = filtered.subList(start, end);
 
             AssetListResponse assetListResponse = new AssetListResponse();
-            assetListResponse.setAssets(edcAssets);
-            assetListResponse.setTotal(edcAssets.size());
+            assetListResponse.setAssets(paginated);
+            assetListResponse.setTotal(allAssets.size());
             return assetListResponse;
 
         } catch (Exception e) {

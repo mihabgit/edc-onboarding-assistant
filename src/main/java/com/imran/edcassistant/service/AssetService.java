@@ -9,7 +9,7 @@ public interface AssetService {
 
     AssetResponseDto createAsset(AssetRequestDto requestDto);
 
-    AssetListResponse getAllAssets();
+    AssetListResponse getAllAssets(Integer page, Integer limit, String assetId);
 
     EdcAssetResponse getAssetById(String assetId);
 

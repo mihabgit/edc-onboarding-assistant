@@ -1,6 +1,5 @@
 package com.imran.edcassistant.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.imran.edcassistant.model.dto.AssetListResponse;
 import com.imran.edcassistant.model.dto.AssetRequestDto;
 import com.imran.edcassistant.model.dto.AssetResponseDto;
@@ -25,7 +24,7 @@ public class AssetController {
 
     @PostMapping
     @Operation(summary = "Register a new asset", description = "Register a new asset in EDC with simplified input format.")
-    public ResponseEntity<AssetResponseDto> createAsset(@Valid @RequestBody AssetRequestDto requestDto) throws JsonProcessingException {
+    public ResponseEntity<AssetResponseDto> createAsset(@Valid @RequestBody AssetRequestDto requestDto) {
         log.info("Received asset request: {}", requestDto);
         AssetResponseDto response = assetService.createAsset(requestDto);
         return ResponseEntity.ok(response);
@@ -33,9 +32,13 @@ public class AssetController {
 
     @GetMapping
     @Operation(summary = "List all assets", description = "Get a list of all created assets.")
-    public ResponseEntity<AssetListResponse> getAllAssets() {
+    public ResponseEntity<AssetListResponse> getAllAssets(
+            @RequestParam(defaultValue = "0") Integer page,
+            @RequestParam(defaultValue = "50") Integer limit,
+            @RequestParam(required = false) String id
+    ) {
         log.info("Retrieving all assets...");
-        AssetListResponse response = assetService.getAllAssets();
+        AssetListResponse response = assetService.getAllAssets(page, limit, id);
         return ResponseEntity.ok(response);
     }
 

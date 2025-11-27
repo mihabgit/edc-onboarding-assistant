@@ -35,7 +35,7 @@ public class HealthService {
 
         Statistics statistics = new Statistics();
         try {
-            var assets = assetService.getAllAssets();
+            var assets = assetService.getAllAssets(0, 1000, null);
             var policies = edcClient.getAllPolicies();
             statistics.setTotalAssets(assets.getTotal());
             statistics.setTotalPolicies(policies.size());

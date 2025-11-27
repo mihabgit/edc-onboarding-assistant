@@ -3,6 +3,7 @@ package com.imran.edcassistant.model.edc;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -16,5 +17,7 @@ public class AssetQuerySpec {
 
     private Integer limit;
     private Integer offset;
+
+    private List<Map<String, Object>> filter;
 
 }
