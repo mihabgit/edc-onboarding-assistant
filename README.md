@@ -37,7 +37,36 @@ cd edc-onboarding-assistant
 ```
 Run run this command: ```docker compose up --build```
 
-Both application should running.
+Both application should run.
+
+## Quick Start (Local) if Docker setup is not working
+Clone and build **edc-connector** repository by executing below command
+```
+git clone https://github.com/mihabgit/edc-connector.git
+cd edc-connector
+./gradlew transfer:transfer-00-prerequisites:connector:build
+```
+Then execute this
+```
+java -Dedc.fs.config=transfer/transfer-00-prerequisites/resources/configuration/provider-configuration.properties -jar transfer/transfer-00-prerequisites/connector/build/libs/connector.jar
+```
+If everything is OK, you can see something like below
+```
+INFO 2025-11-28T23:09:01.852792 88 service extensions started
+INFO 2025-11-28T23:09:01.854605 Runtime cac0b8b2-59ff-4638-bda3-1d82836747c3 ready
+```
+**Now you should set up Spring Boot app**
+
+Clone and run the edc-onboarding-assistant app
+```
+git clone https://github.com/mihabgit/edc-onboarding-assistant
+cd edc-onboarding-assistant
+./gradlew bootRun
+```
+You should see as usual Spring boot's
+```
+Tomcat started on port 8090 (http) with context path '/'Tomcat started on port 8090 (http) with context path '/'
+```
 
 3. **Access the API**
 

@@ -17,7 +17,7 @@ services:
     environment:
       - EDC_BASE_URL=http://edc-connector:19193
     depends_on:
-      - edc-connector  # Remove health condition
+      - edc-connector
     networks:
       - edc-network
 
