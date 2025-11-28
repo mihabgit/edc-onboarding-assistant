@@ -20,7 +20,7 @@ public class EdcClient {
     private final RestTemplate restTemplate;
     private final String edcApiUrl;
 
-    public EdcClient(RestTemplate restTemplate, @Value("${edc.management.api.url:http://localhost:19193}") String edcApiUrl) {
+    public EdcClient(RestTemplate restTemplate, @Value("${edc.base-url}") String edcApiUrl) {
         this.restTemplate = restTemplate;
         this.edcApiUrl = edcApiUrl;
     }

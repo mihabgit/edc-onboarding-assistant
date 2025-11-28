@@ -1,0 +1,26 @@
+services:
+  edc-connector:
+    image: edc-connector:latest
+    container_name: edc-connector
+    ports:
+      - "19193:19193"
+    networks:
+      - edc-network
+
+  spring-boot-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-boot-app
+    ports:
+      - "8090:8090"
+    environment:
+      - EDC_BASE_URL=http://edc-connector:19193
+    depends_on:
+      - edc-connector  # Remove health condition
+    networks:
+      - edc-network
+
+networks:
+  edc-network:
+    driver: bridge
