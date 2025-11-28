@@ -3,19 +3,17 @@ package com.imran.edcassistant.service;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.imran.edcassistant.AssetRepository;
 import com.imran.edcassistant.client.EdcClient;
-import com.imran.edcassistant.model.dto.AssetListResponse;
-import com.imran.edcassistant.model.dto.AssetRequestDto;
-import com.imran.edcassistant.model.dto.AssetResponseDto;
+import com.imran.edcassistant.entity.AssetEntity;
+import com.imran.edcassistant.model.dto.*;
 import com.imran.edcassistant.model.edc.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -24,12 +22,14 @@ public class AssetServiceImpl implements AssetService {
     private final EdcClient edcClient;
     private final PolicyService policyService;
     private final String catalogUrl;
+    private final AssetRepository assetRepository;
 
     public AssetServiceImpl(EdcClient edcClient, PolicyService policyService,
-                            @Value("${app.catalog.url:http://localhost:8090/api/catalog}") String catalogUrl) {
+                            @Value("${app.catalog.url:http://localhost:8090/api/catalog}") String catalogUrl, AssetRepository assetRepository) {
         this.edcClient = edcClient;
         this.policyService = policyService;
         this.catalogUrl = catalogUrl;
+        this.assetRepository = assetRepository;
     }
 
 
@@ -48,6 +48,16 @@ public class AssetServiceImpl implements AssetService {
             String edcAsset = buildEdcAsset(assetId, requestDto);
             String asset = edcClient.createAsset(edcAsset);
             log.info("Created asset: {}", asset);
+
+            AssetEntity assetEntity = new AssetEntity();
+            assetEntity.setAssetId(assetId);
+            assetEntity.setName(requestDto.getName());
+            assetEntity.setDescription(requestDto.getDescription());
+            assetEntity.setCreatedAt(Instant.now());
+            assetEntity.setContentType(requestDto.getContentType());
+            assetEntity.setType(policy.getType());
+            assetEntity.setAllowedCompanies(requestDto.getAccessPolicy().getAllowedCompanies());
+            assetRepository.save(assetEntity);
 
             AssetResponseDto responseDto = new AssetResponseDto();
             responseDto.setAssetId(assetId);
@@ -105,8 +115,13 @@ public class AssetServiceImpl implements AssetService {
             int end = Math.min(start + limit, filtered.size());
             List<EdcAssetResponse> paginated = filtered.subList(start, end);
 
+            List<String> assetIds = paginated.stream().map(EdcAssetResponse::getId).toList();
+            var assetEntities = assetRepository.findAllByAssetIdIn(assetIds);
+
+            List<Asset> assets = assetEntities.stream().map(this::mapEntityToDto).toList();
+
             AssetListResponse assetListResponse = new AssetListResponse();
-            assetListResponse.setAssets(paginated);
+            assetListResponse.setAssets(assets);
             assetListResponse.setTotal(allAssets.size());
             return assetListResponse;
 
@@ -117,15 +132,33 @@ public class AssetServiceImpl implements AssetService {
 
     }
 
-    public EdcAssetResponse getAssetById(String assetId) {
+    public Asset getAssetById(String assetId) {
         log.info("Fetching asset by id: {}", assetId);
 
         try {
-            return edcClient.getAssetByAssetId(assetId);
+             EdcAssetResponse response = edcClient.getAssetByAssetId(assetId);
+             AssetEntity assetEntity = assetRepository.getAssetByAssetId(response.getId());
+             return mapEntityToDto(assetEntity);
+
         } catch (Exception e) {
             log.error("Error fetching asset by id: {}", assetId, e);
             throw new RuntimeException("Error fetching asset by id: " + assetId, e);
         }
+    }
+
+    Asset mapEntityToDto(AssetEntity assetEntity) {
+        Asset asset = new Asset();
+        asset.setAssetId(assetEntity.getAssetId());
+        asset.setName(assetEntity.getName());
+        asset.setDescription(assetEntity.getDescription());
+        asset.setCreatedAt(assetEntity.getCreatedAt());
+        asset.setContentType(assetEntity.getContentType());
+        Policy policy = new Policy();
+        policy.setType(assetEntity.getType());
+        policy.setAllowedCompanies(assetEntity.getAllowedCompanies());
+        asset.setPolicy(policy);
+
+        return asset;
     }
 
 }

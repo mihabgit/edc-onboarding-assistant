@@ -3,6 +3,7 @@ package com.imran.edcassistant.model.edc;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.time.Instant;
 import java.util.Map;
 
 @Data

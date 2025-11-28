@@ -1,9 +1,9 @@
 package com.imran.edcassistant.controller;
 
+import com.imran.edcassistant.model.dto.Asset;
 import com.imran.edcassistant.model.dto.AssetListResponse;
 import com.imran.edcassistant.model.dto.AssetRequestDto;
 import com.imran.edcassistant.model.dto.AssetResponseDto;
-import com.imran.edcassistant.model.edc.EdcAssetResponse;
 import com.imran.edcassistant.service.AssetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,9 +43,9 @@ public class AssetController {
     }
 
     @GetMapping("/{assetId}")
-    public ResponseEntity<EdcAssetResponse> getAsset(@PathVariable("assetId") String assetId) {
+    public ResponseEntity<Asset> getAsset(@PathVariable("assetId") String assetId) {
         log.info("GetAssetById API is called with : {}", assetId);
-        EdcAssetResponse asset = assetService.getAssetById(assetId);
+        Asset asset = assetService.getAssetById(assetId);
         return ResponseEntity.ok(asset);
     }
 

@@ -1,11 +1,9 @@
 package com.imran.edcassistant.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.imran.edcassistant.AssetRepository;
 import com.imran.edcassistant.client.EdcClient;
-import com.imran.edcassistant.model.dto.AssetListResponse;
-import com.imran.edcassistant.model.dto.AssetRequestDto;
-import com.imran.edcassistant.model.dto.AssetResponseDto;
-import com.imran.edcassistant.model.dto.DataAddress;
+import com.imran.edcassistant.model.dto.*;
 import com.imran.edcassistant.model.edc.EdcAssetResponse;
 import com.imran.edcassistant.model.edc.EdcPolicyDefinition;
 import com.imran.edcassistant.model.edc.PolicyResponse;
@@ -41,9 +39,11 @@ class AssetServiceImplTest {
 
     private final String catalogUrl = "http://localhost:8090/api/catalog";
 
+    private AssetRepository assetRepository;
+
     @BeforeEach
     void setUp() {
-        assetService = new AssetServiceImpl(edcClient, policyService, catalogUrl);
+        assetService = new AssetServiceImpl(edcClient, policyService, catalogUrl, assetRepository);
     }
 
     @Test
@@ -149,7 +149,7 @@ class AssetServiceImplTest {
         assertNotNull(result);
         assertEquals(3, result.getTotal()); // Total count includes all assets
         assertEquals(2, result.getAssets().size()); // Filtered count
-        assertTrue(result.getAssets().stream().allMatch(asset -> asset.getId().contains("asset-")));
+        assertTrue(result.getAssets().stream().allMatch(asset -> asset.getAssetId().contains("asset-")));
     }
 
     @Test
@@ -171,8 +171,8 @@ class AssetServiceImplTest {
         assertNotNull(result);
         assertEquals(4, result.getTotal());
         assertEquals(2, result.getAssets().size());
-        assertEquals("asset-2", result.getAssets().get(0).getId());
-        assertEquals("asset-3", result.getAssets().get(1).getId());
+        assertEquals("asset-2", result.getAssets().get(0).getAssetId());
+        assertEquals("asset-3", result.getAssets().get(1).getAssetId());
     }
 
     @Test
@@ -215,11 +215,11 @@ class AssetServiceImplTest {
         when(edcClient.getAssetByAssetId(assetId)).thenReturn(expectedResponse);
 
         // When
-        EdcAssetResponse result = assetService.getAssetById(assetId);
+        Asset result = assetService.getAssetById(assetId);
 
         // Then
         assertNotNull(result);
-        assertEquals(assetId, result.getId());
+        assertEquals(assetId, result.getAssetId());
         verify(edcClient).getAssetByAssetId(assetId);
     }
 

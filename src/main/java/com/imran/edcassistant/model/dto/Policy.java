@@ -5,7 +5,9 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class AssetListResponse {
-    private List<Asset> assets;
-    private int total;
+public class Policy {
+
+    private String type;
+    private List<String> allowedCompanies;
+
 }
