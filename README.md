@@ -216,4 +216,6 @@ Response
 }
 ```
 
+**Note: For consistent data, if you need to rerun Spring Boot app, please rerun edc-connector too.**
+
 Hope, everything works well.
