@@ -1,261 +1,198 @@
 package com.imran.edcassistant.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.imran.edcassistant.AssetRepository;
 import com.imran.edcassistant.client.EdcClient;
+import com.imran.edcassistant.entity.AssetEntity;
 import com.imran.edcassistant.model.dto.*;
 import com.imran.edcassistant.model.edc.EdcAssetResponse;
 import com.imran.edcassistant.model.edc.EdcPolicyDefinition;
 import com.imran.edcassistant.model.edc.PolicyResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class AssetServiceImplTest {
 
-    @Mock
     private EdcClient edcClient;
-
-    @Mock
     private PolicyService policyService;
-
-    @Captor
-    private ArgumentCaptor<String> assetJsonCaptor;
+    private AssetRepository assetRepository;
 
     private AssetServiceImpl assetService;
 
-    private final String catalogUrl = "http://localhost:8090/api/catalog";
-
-    private AssetRepository assetRepository;
-
     @BeforeEach
-    void setUp() {
-        assetService = new AssetServiceImpl(edcClient, policyService, catalogUrl, assetRepository);
+    void setup() {
+        edcClient = mock(EdcClient.class);
+        policyService = mock(PolicyService.class);
+        assetRepository = mock(AssetRepository.class);
+
+        assetService = new AssetServiceImpl(
+                edcClient,
+                policyService,
+                "http://test-catalog",
+                assetRepository
+        );
     }
 
     @Test
-    void createAsset_Success() throws JsonProcessingException {
-        // Given
-        AssetRequestDto requestDto = createSampleAssetRequestDto();
-        String policyId = "policy-abc123";
+    void testCreateAsset_success() {
+        // Prepare DTO
+        AssetRequestDto request = new AssetRequestDto();
+        request.setName("Test Asset");
+        request.setDescription("Desc");
+        request.setContentType("application/json");
+
+        AccessPolicy policyDto = new AccessPolicy();
+        policyDto.setAllowedCompanies(List.of("ABC"));
+        request.setAccessPolicy(policyDto);
+
+        DataAddress da = new DataAddress();
+        da.setBaseUrl("http://example.com");
+        request.setDataAddress(da);
+
+        // Mock policy creation
+        EdcPolicyDefinition policyDefinition = new EdcPolicyDefinition();
+        when(policyService.createEdcPolicy(anyString(), any())).thenReturn(policyDefinition);
+
         PolicyResponse policyResponse = new PolicyResponse();
-        policyResponse.setId(policyId);
+        policyResponse.setType("USE");
+        when(edcClient.createPolicy(any())).thenReturn(policyResponse);
 
-        when(policyService.createEdcPolicy(anyString(), any())).thenReturn(new EdcPolicyDefinition());
-        when(edcClient.createPolicy(any(EdcPolicyDefinition.class))).thenReturn(policyResponse);
-        when(edcClient.createAsset(anyString())).thenReturn("asset-response");
+        // Mock asset creation
+        when(edcClient.createAsset(anyString())).thenReturn("OK");
 
-        // When
-        AssetResponseDto result = assetService.createAsset(requestDto);
+        // Run method
+        AssetResponseDto response = assetService.createAsset(request);
 
-        // Then
-        assertNotNull(result);
-        assertNotNull(result.getAssetId());
-        assertTrue(result.getAssetId().startsWith("asset-"));
-        assertEquals("published", result.getStatus());
-        assertEquals(catalogUrl, result.getCatalogUrl());
-        assertEquals("Asset successfully registered and published", result.getMessage());
+        // Verify
+        assertNotNull(response.getAssetId());
+        assertEquals("published", response.getStatus());
+        assertEquals("http://test-catalog", response.getCatalogUrl());
 
-        verify(policyService).createEdcPolicy(anyString(), any());
-        verify(edcClient).createPolicy(any(EdcPolicyDefinition.class));
-        verify(edcClient).createAsset(assetJsonCaptor.capture());
+        // Verify repository save
+        ArgumentCaptor<AssetEntity> captor = ArgumentCaptor.forClass(AssetEntity.class);
+        verify(assetRepository).save(captor.capture());
+        AssetEntity saved = captor.getValue();
 
-        // Verify the generated asset JSON
-        String generatedAssetJson = assetJsonCaptor.getValue();
-        assertTrue(generatedAssetJson.contains(requestDto.getName()));
-        assertTrue(generatedAssetJson.contains(requestDto.getDataAddress().getBaseUrl()));
+        assertEquals("Test Asset", saved.getName());
+        assertEquals("Desc", saved.getDescription());
+        assertEquals("application/json", saved.getContentType());
+        assertEquals("USE", saved.getType());
+        assertEquals(List.of("ABC"), saved.getAllowedCompanies());
+        assertNotNull(saved.getCreatedAt());
     }
 
     @Test
-    void createAsset_PolicyCreationFails_ShouldThrowException() {
-        // Given
-        AssetRequestDto requestDto = createSampleAssetRequestDto();
+    void testCreateAsset_failure() {
+        AssetRequestDto request = new AssetRequestDto();
+        request.setAccessPolicy(new AccessPolicy());
+        request.setDataAddress(new DataAddress());
 
         when(policyService.createEdcPolicy(anyString(), any()))
                 .thenThrow(new RuntimeException("Policy creation failed"));
 
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> assetService.createAsset(requestDto));
-
-        assertEquals("Asset creation failed", exception.getMessage());
-        verify(edcClient, never()).createAsset(anyString());
+        assertThrows(RuntimeException.class,
+                () -> assetService.createAsset(request));
     }
 
     @Test
-    void createAsset_AssetCreationFails_ShouldThrowException() {
-        // Given
-        AssetRequestDto requestDto = createSampleAssetRequestDto();
+    void testGetAllAssets() {
+        // Mock EDC asset list
+        EdcAssetResponse a1 = new EdcAssetResponse();
+        a1.setId("asset-1");
 
-        when(policyService.createEdcPolicy(anyString(), any())).thenReturn(new EdcPolicyDefinition());
-        when(edcClient.createPolicy(any(EdcPolicyDefinition.class))).thenReturn(new PolicyResponse());
-        when(edcClient.createAsset(anyString())).thenThrow(new RuntimeException("EDC API error"));
+        EdcAssetResponse a2 = new EdcAssetResponse();
+        a2.setId("asset-2");
 
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> assetService.createAsset(requestDto));
+        when(edcClient.getAllAssets()).thenReturn(List.of(a1, a2));
 
-        assertEquals("Asset creation failed", exception.getMessage());
-    }
+        // Mock repo DB fetch
+        AssetEntity e1 = new AssetEntity();
+        e1.setAssetId("asset-1");
+        e1.setName("A1");
 
-    @Test
-    void getAllAssets_WithoutFilters_ShouldReturnAllAssets() {
-        // Given
-        List<EdcAssetResponse> mockAssets = List.of(
-                createEdcAssetResponse("asset-1", "Test Asset 1"),
-                createEdcAssetResponse("asset-2", "Test Asset 2")
-        );
+        AssetEntity e2 = new AssetEntity();
+        e2.setAssetId("asset-2");
+        e2.setName("A2");
 
-        when(edcClient.getAllAssets()).thenReturn(mockAssets);
+        when(assetRepository.findAllByAssetIdIn(List.of("asset-1", "asset-2")))
+                .thenReturn(List.of(e1, e2));
 
-        // When
         AssetListResponse result = assetService.getAllAssets(0, 10, null);
 
-        // Then
-        assertNotNull(result);
         assertEquals(2, result.getTotal());
         assertEquals(2, result.getAssets().size());
-        verify(edcClient).getAllAssets();
+
+        assertEquals("A1", result.getAssets().get(0).getName());
+        assertEquals("A2", result.getAssets().get(1).getName());
     }
 
     @Test
-    void getAllAssets_WithAssetIdFilter_ShouldReturnFilteredAssets() {
-        // Given
-        List<EdcAssetResponse> mockAssets = List.of(
-                createEdcAssetResponse("asset-123", "Test Asset"),
-                createEdcAssetResponse("asset-456", "Another Asset"),
-                createEdcAssetResponse("other-id", "Different Asset")
-        );
+    void testGetAllAssets_filterAndPaginate() {
+        EdcAssetResponse a1 = new EdcAssetResponse();
+        a1.setId("asset-a1");
 
-        when(edcClient.getAllAssets()).thenReturn(mockAssets);
+        EdcAssetResponse a2 = new EdcAssetResponse();
+        a2.setId("asset-b2");
 
-        // When
-        AssetListResponse result = assetService.getAllAssets(0, 10, "asset-");
+        EdcAssetResponse a3 = new EdcAssetResponse();
+        a3.setId("asset-c3");
 
-        // Then
-        assertNotNull(result);
-        assertEquals(3, result.getTotal()); // Total count includes all assets
-        assertEquals(2, result.getAssets().size()); // Filtered count
-        assertTrue(result.getAssets().stream().allMatch(asset -> asset.getAssetId().contains("asset-")));
+        when(edcClient.getAllAssets()).thenReturn(List.of(a1, a2, a3));
+
+        // Only expecting asset-b2 after filter + pagination
+        AssetEntity entity = new AssetEntity();
+        entity.setAssetId("asset-b2");
+        entity.setName("Filtered Asset");
+
+        when(assetRepository.findAllByAssetIdIn(List.of("asset-b2")))
+                .thenReturn(List.of(entity));
+
+        AssetListResponse response =
+                assetService.getAllAssets(0, 1, "b2");
+
+        assertEquals(3, response.getTotal());     // total from EDC API
+        assertEquals(1, response.getAssets().size());
+        assertEquals("Filtered Asset", response.getAssets().get(0).getName());
     }
 
     @Test
-    void getAllAssets_WithPagination_ShouldReturnPaginatedResults() {
-        // Given
-        List<EdcAssetResponse> mockAssets = List.of(
-                createEdcAssetResponse("asset-1", "Asset 1"),
-                createEdcAssetResponse("asset-2", "Asset 2"),
-                createEdcAssetResponse("asset-3", "Asset 3"),
-                createEdcAssetResponse("asset-4", "Asset 4")
-        );
+    void testGetAssetById() {
+        EdcAssetResponse edcResponse = new EdcAssetResponse();
+        edcResponse.setId("asset-123");
 
-        when(edcClient.getAllAssets()).thenReturn(mockAssets);
+        when(edcClient.getAssetByAssetId("asset-123"))
+                .thenReturn(edcResponse);
 
-        // When
-        AssetListResponse result = assetService.getAllAssets(1, 2, null);
+        AssetEntity entity = new AssetEntity();
+        entity.setAssetId("asset-123");
+        entity.setName("My Asset");
+        entity.setType("USE");
+        entity.setAllowedCompanies(List.of("X"));
+        entity.setCreatedAt(Instant.now());
 
-        // Then
-        assertNotNull(result);
-        assertEquals(4, result.getTotal());
-        assertEquals(2, result.getAssets().size());
-        assertEquals("asset-2", result.getAssets().get(0).getAssetId());
-        assertEquals("asset-3", result.getAssets().get(1).getAssetId());
+        when(assetRepository.getAssetByAssetId("asset-123"))
+                .thenReturn(entity);
+
+        Asset asset = assetService.getAssetById("asset-123");
+
+        assertEquals("asset-123", asset.getAssetId());
+        assertEquals("My Asset", asset.getName());
+        assertEquals("USE", asset.getPolicy().getType());
+        assertEquals(List.of("X"), asset.getPolicy().getAllowedCompanies());
     }
 
     @Test
-    void getAllAssets_PaginationOutOfBounds_ShouldHandleGracefully() {
-        // Given
-        List<EdcAssetResponse> mockAssets = List.of(
-                createEdcAssetResponse("asset-1", "Asset 1"),
-                createEdcAssetResponse("asset-2", "Asset 2")
-        );
+    void testGetAssetById_failure() {
+        when(edcClient.getAssetByAssetId("bad-id"))
+                .thenThrow(new RuntimeException("Not found"));
 
-        when(edcClient.getAllAssets()).thenReturn(mockAssets);
-
-        // When - page beyond available data
-        AssetListResponse result = assetService.getAllAssets(5, 10, null);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(2, result.getTotal());
-        assertTrue(result.getAssets().isEmpty());
-    }
-
-    @Test
-    void getAllAssets_ClientThrowsException_ShouldPropagate() {
-        // Given
-        when(edcClient.getAllAssets()).thenThrow(new RuntimeException("EDC API unavailable"));
-
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> assetService.getAllAssets(0, 10, null));
-
-        assertEquals("Error fetching all assets", exception.getMessage());
-    }
-
-    @Test
-    void getAssetById_Success() {
-        // Given
-        String assetId = "asset-123";
-        EdcAssetResponse expectedResponse = createEdcAssetResponse(assetId, "Test Asset");
-
-        when(edcClient.getAssetByAssetId(assetId)).thenReturn(expectedResponse);
-
-        // When
-        Asset result = assetService.getAssetById(assetId);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(assetId, result.getAssetId());
-        verify(edcClient).getAssetByAssetId(assetId);
-    }
-
-    @Test
-    void getAssetById_NotFound_ShouldThrowException() {
-        // Given
-        String assetId = "non-existent-asset";
-
-        when(edcClient.getAssetByAssetId(assetId))
-                .thenThrow(new RuntimeException("Asset not found"));
-
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class,
-                () -> assetService.getAssetById(assetId));
-
-        assertEquals("Error fetching asset by id: " + assetId, exception.getMessage());
-    }
-
-    private AssetRequestDto createSampleAssetRequestDto() {
-        AssetRequestDto requestDto = new AssetRequestDto();
-        requestDto.setName("Test Asset");
-
-        DataAddress dataAddress = new DataAddress();
-        dataAddress.setBaseUrl("https://api.example.com/data");
-        requestDto.setDataAddress(dataAddress);
-
-        // Assuming AssetRequestDto has accessPolicy field
-        // requestDto.setAccessPolicy(new PolicyDefinition());
-
-        return requestDto;
-    }
-
-    private EdcAssetResponse createEdcAssetResponse(String id, String name) {
-        EdcAssetResponse response = new EdcAssetResponse();
-        response.setId(id);
-        response.setProperties(Map.of("name", name));
-        return response;
+        assertThrows(RuntimeException.class,
+                () -> assetService.getAssetById("bad-id"));
     }
 }

@@ -133,24 +133,35 @@ Response
 {
   "assets": [
     {
-      "properties": {
-        "id": "asset-366c062e"
+      "assetId": "asset-e7c349f2",
+      "name": "vehicle",
+      "description": "vehicle tracking ablasff",
+      "contentType": "application/json",
+      "policy": {
+        "type": "IdResponse",
+        "allowedCompanies": [
+          "BMW",
+          "VOLVO"
+        ]
       },
-      "@id": "asset-366c062e",
-      "@type": "Asset",
-      "dataAddress": {
-        "@type": "DataAddress",
-        "type": "HttpData",
-        "baseUrl": "https://abcd.com"
+      "createdAt": "2025-11-29T04:34:22.962149Z"
+    },
+    {
+      "assetId": "asset-ea4b5160",
+      "name": "asset-abc",
+      "description": "asset for abcd and xyz",
+      "contentType": "application/json",
+      "policy": {
+        "type": "IdResponse",
+        "allowedCompanies": [
+          "Facebook",
+          "Google"
+        ]
       },
-      "@context": {
-        "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
-        "edc": "https://w3id.org/edc/v0.0.1/ns/",
-        "odrl": "http://www.w3.org/ns/odrl/2/"
-      }
+      "createdAt": "2025-11-29T04:35:14.142014Z"
     }
   ],
-  "total": 1
+  "total": 2
 }
 ```
 ### Get asset by assetId
@@ -165,21 +176,18 @@ curl -X 'GET' \
 Response
 ```
 {
-  "properties": {
-    "id": "asset-366c062e"
+  "assetId": "asset-e7c349f2",
+  "name": "vehicle",
+  "description": "vehicle tracking ablasff",
+  "contentType": "application/json",
+  "policy": {
+    "type": "IdResponse",
+    "allowedCompanies": [
+      "BMW",
+      "VOLVO"
+    ]
   },
-  "@id": "asset-366c062e",
-  "@type": "Asset",
-  "dataAddress": {
-    "@type": "DataAddress",
-    "type": "HttpData",
-    "baseUrl": "https://abcd.com"
-  },
-  "@context": {
-    "@vocab": "https://w3id.org/edc/v0.0.1/ns/",
-    "edc": "https://w3id.org/edc/v0.0.1/ns/",
-    "odrl": "http://www.w3.org/ns/odrl/2/"
-  }
+  "createdAt": "2025-11-29T04:34:22.962149Z"
 }
 ```
 
